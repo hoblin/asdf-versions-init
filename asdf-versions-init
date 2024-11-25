@@ -21,6 +21,9 @@ declare -A RUNTIMES=(
     [".python-version"]="python:Python"
 )
 
+# Initialize empty array for versions
+declare -a versions=()
+
 # Help message
 show_help() {
     cat << EOF
