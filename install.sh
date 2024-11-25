@@ -19,8 +19,13 @@ fi
 
 # Download the script
 echo "Downloading $SCRIPT_NAME..."
-$SUDO curl -sSL "$GITHUB_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"
+$SUDO curl -sSLf "$GITHUB_RAW_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"
 $SUDO chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
-echo "Installation complete! You can now use '$SCRIPT_NAME'"
-echo "Try '$SCRIPT_NAME --help' for usage information"
+if [ -x "$INSTALL_DIR/$SCRIPT_NAME" ]; then
+    echo "Installation complete! You can now use '$SCRIPT_NAME'"
+    echo "Try '$SCRIPT_NAME --help' for usage information"
+else
+    echo "Installation failed!"
+    exit 1
+fi
