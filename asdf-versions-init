@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+
+# Copyright (c) 2024 hoblin, Claude (Anthropic)
+# A utility to generate .tool-versions file for asdf version manager
+# from legacy version files (.ruby-version, .nvmrc, etc.)
+#
+# MIT Licensed
+# https://github.com/hoblin
+
+set -euo pipefail
+
+# Initialize variables
+TOOL_VERSIONS_FILE=".tool-versions"
+VERBOSE=false
+DRY_RUN=false
+
+# Define runtime configurations
+declare -A RUNTIMES=(
+    [".ruby-version"]="ruby:ruby"
+    [".nvmrc"]="nodejs:Node.js"
+    [".python-version"]="python:Python"
+)
+
+# Help message
+show_help() {
+    cat << EOF
+Usage: asdf-versions-init [OPTIONS]
+
+Generates .tool-versions file from existing version files (.ruby-version, .nvmrc, etc.)
+
+Options:
+  -h, --help     Show this help message
+  -v, --verbose  Show verbose output
+  -d, --dry-run  Show what would be done without making changes
+  -f, --force    Overwrite existing .tool-versions file
+
+The script will detect:
+EOF
+    # Dynamically generate the list of supported version files
+    for dotfile in "${!RUNTIMES[@]}"; do
+        plugin_name="${RUNTIMES[$dotfile]%%:*}"
+        echo "  - $dotfile -> $plugin_name"
+    done
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -d|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -f|--force)
+            FORCE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Function to log verbose messages
+log() {
+    if [[ "$VERBOSE" == true ]]; then
+        echo "$@"
+    fi
+}
+
+# Function to clean version string (remove whitespace, 'v' prefix, etc.)
+clean_version() {
+    echo "$1" | tr -d 'v' | tr -d ' ' | tr -d '\n'
+}
+
+# Check if .tool-versions exists and handle accordingly
+if [[ -f "$TOOL_VERSIONS_FILE" && "${FORCE:-false}" != true ]]; then
+    echo "Error: $TOOL_VERSIONS_FILE already exists. Use -f to force overwrite."
+    exit 1
+fi
+
+# Initialize empty array for versions
+declare -a versions
+
+# Check for version files
+for dotfile in "${!RUNTIMES[@]}"; do
+    if [[ -f "$dotfile" ]]; then
+        plugin_name="${RUNTIMES[$dotfile]%%:*}"
+        runtime_name="${RUNTIMES[$dotfile]#*:}"
+        version=$(clean_version "$(cat "$dotfile")")
+        log "Found $runtime_name version: $version"
+        versions+=("$plugin_name $version")
+    fi
+done
+
+# If no versions found
+if [[ ${#versions[@]} -eq 0 ]]; then
+    echo "No version files found."
+    exit 0
+fi
+
+# Output the versions
+if [[ "$DRY_RUN" == true ]]; then
+    echo "Would create $TOOL_VERSIONS_FILE with:"
+    printf '%s\n' "${versions[@]}"
+else
+    printf '%s\n' "${versions[@]}" > "$TOOL_VERSIONS_FILE"
+    echo "Created $TOOL_VERSIONS_FILE with ${#versions[@]} version(s)"
+fi
